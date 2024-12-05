@@ -277,28 +277,72 @@ const Message = styled(motion.div)<{ $isCorrect?: boolean }>`
 
 const ScoreContainer = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 1rem;
-  margin-top: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
 `;
 
 const ScoreLabel = styled.span`
-  font-size: 1.2rem;
-  color: #888;
-
-  @media (max-width: 768px) {
-    font-size: 1.1rem;
-  }
+  font-weight: 500;
+  color: #ffffff;
 `;
 
 const ScoreValue = styled(motion.span)`
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #4ade80;
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: #ffffff;
+`;
 
-  @media (max-width: 768px) {
-    font-size: 1.3rem;
+const ScoreItem = styled.div<{ $isCorrect?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: ${props => 
+    props.$isCorrect === undefined 
+      ? '#4b5563' 
+      : props.$isCorrect 
+        ? '#059669' 
+        : '#dc2626'
+  };
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+`;
+
+const AttemptsIndicator = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1rem;
+  animation: fadeIn 0.3s ease-in-out;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const HeartIcon = styled.svg`
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #ef4444;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.1));
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: scale(1.1);
   }
 `;
 
@@ -561,6 +605,11 @@ function App() {
   const [score, setScore] = useState<number>(0);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const [totalFlags, setTotalFlags] = useState(0);
+  const [correctGuesses, setCorrectGuesses] = useState(0);
+  const [wrongGuesses, setWrongGuesses] = useState(0);
+  const [attemptsLeft, setAttemptsLeft] = useState(3);
+  const [totalPossibleFlags] = useState(Object.keys(countryData).length);
 
   const getAllCountryCodes = (): string[] => Object.keys(countryData);
 
@@ -570,94 +619,138 @@ function App() {
     return newFlag;
   };
 
-  const checkAnswer = () => {
+  const resetAttempts = () => {
+    setAttemptsLeft(3);
+  };
+
+  const generateNewFlag = () => {
+    const newFlag = getRandomFlag();
+    setCurrentFlag(newFlag);
+    resetAttempts();
+    setUserAnswer('');
+    setSuggestions([]);
+  };
+
+  const getSuggestions = (input: string) => {
+    if (!input) return [];
+    
+    const suggestions = Object.values(countryData)
+      .map(country => country.name)
+      .filter(name => 
+        name.toLowerCase().includes(input.toLowerCase())
+      )
+      .slice(0, 5);
+
+    return suggestions;
+  };
+
+  const handleSubmit = () => {
     const input = userAnswer.toLowerCase().trim();
     const currentCountry = countryData[currentFlag];
     
-    if (!currentCountry) {
-      console.error('Country data not found for:', currentFlag);
+    if (!input) {
       return;
     }
 
-    const isCorrect = 
-      input === currentFlag.toLowerCase() || 
-      input === currentCountry.name.toLowerCase() ||
-      currentCountry.aliases.some(alias => alias === input);
+    const isCorrect = input.toLowerCase() === currentCountry.name.toLowerCase();
 
-    setMessage(isCorrect ? ' Correct!' : ' Try again!');
     if (isCorrect) {
-      setScore(score + 1);
-      const newFlag = getRandomFlag();
-      setCurrentFlag(newFlag);
+      setCorrectGuesses(prev => prev + 1);
+      setTotalFlags(prev => prev + 1);
+      setScore(prev => prev + 1);
+      setMessage('Correct!');
       setUserAnswer('');
-      setSuggestions([]);
+      setTimeout(() => {
+        setMessage('');
+        generateNewFlag();
+      }, 2000);
+    } else {
+      setAttemptsLeft(prev => prev - 1);
+      if (attemptsLeft <= 1) {
+        setWrongGuesses(prev => prev + 1);
+        setTotalFlags(prev => prev + 1);
+        setMessage(`Wrong! The correct answer was ${currentCountry.name}`);
+        setUserAnswer('');
+        setTimeout(() => {
+          setMessage('');
+          generateNewFlag();
+        }, 2000);
+      } else {
+        setMessage(`Wrong! ${attemptsLeft - 1} ${attemptsLeft - 1 === 1 ? 'try' : 'tries'} left`);
+        setUserAnswer('');
+      }
     }
+  };
+
+  const handleRevealAnswer = () => {
+    const currentCountry = countryData[currentFlag];
+    setMessage(`This is ${currentCountry.name} (${currentFlag.toUpperCase()})`);
+    setScore(Math.max(0, score - 1));
+    setWrongGuesses(prev => prev + 1);
+    setTotalFlags(prev => prev + 1);
+    setTimeout(() => {
+      setMessage('');
+      generateNewFlag();
+    }, 2000);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    const input = suggestion.toLowerCase().trim();
+    const currentCountry = countryData[currentFlag];
+    
+    if (input === currentCountry.name.toLowerCase()) {
+      setCorrectGuesses(prev => prev + 1);
+      setTotalFlags(prev => prev + 1);
+      setScore(prev => prev + 1);
+      setMessage('Correct!');
+      setUserAnswer('');
+      setTimeout(() => {
+        setMessage('');
+        generateNewFlag();
+      }, 2000);
+    } else {
+      setAttemptsLeft(prev => prev - 1);
+      if (attemptsLeft <= 1) {
+        setWrongGuesses(prev => prev + 1);
+        setTotalFlags(prev => prev + 1);
+        setMessage(`Wrong! The correct answer was ${currentCountry.name}`);
+        setUserAnswer('');
+        setTimeout(() => {
+          setMessage('');
+          generateNewFlag();
+        }, 2000);
+      } else {
+        setMessage(`Wrong! ${attemptsLeft - 1} ${attemptsLeft - 1 === 1 ? 'try' : 'tries'} left`);
+        setUserAnswer('');
+      }
+    }
+    setSuggestions([]);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-        handleSuggestionClick(suggestions[selectedIndex]);
+        const suggestion = suggestions[selectedIndex];
+        handleSuggestionClick(suggestion);
       } else {
-        checkAnswer();
+        handleSubmit();
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (suggestions.length > 0) {
-        setSelectedIndex(prev => 
-          prev < suggestions.length - 1 ? prev + 1 : 0
-        );
-      }
+      setSelectedIndex(prev => 
+        prev < suggestions.length - 1 ? prev + 1 : prev
+      );
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (suggestions.length > 0) {
-        setSelectedIndex(prev => 
-          prev > 0 ? prev - 1 : suggestions.length - 1
-        );
-      }
+      setSelectedIndex(prev => prev > 0 ? prev - 1 : prev);
     }
-  };
-
-  const updateSuggestions = (input: string) => {
-    if (!input) {
-      setSuggestions([]);
-      setSelectedIndex(-1);
-      return;
-    }
-
-    const inputLower = input.toLowerCase();
-    const matchingCountries = getAllCountryCodes()
-      .filter(code => {
-        const country = countryData[code];
-        return (
-          code.toLowerCase().startsWith(inputLower) ||
-          country.name.toLowerCase().startsWith(inputLower) ||
-          country.aliases.some(alias => alias.toLowerCase().startsWith(inputLower))
-        );
-      })
-      .map(code => `${code.toUpperCase()} - ${countryData[code].name}`);
-
-    setSuggestions(matchingCountries);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setUserAnswer(value);
     setSelectedIndex(-1);
-    updateSuggestions(value);
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    const code = suggestion.split(' - ')[0].toLowerCase();
-    setUserAnswer(code);
-    setSuggestions([]);
-    checkAnswer();
-  };
-
-  const handleReveal = () => {
-    const currentCountry = countryData[currentFlag];
-    setMessage(`This is ${currentCountry.name} (${currentFlag.toUpperCase()})`);
-    setScore(Math.max(0, score - 1)); // Deduct 1 point for revealing
+    setSuggestions(getSuggestions(value));
   };
 
   return (
@@ -683,7 +776,7 @@ function App() {
             <InputContainer>
               <AnswerInput
                 type="text"
-                placeholder="Enter country name or code..."
+                placeholder="Enter country name..."
                 value={userAnswer}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyPress}
@@ -696,7 +789,7 @@ function App() {
                 >
                   {suggestions.map((suggestion, index) => (
                     <SuggestionItem
-                      key={index}
+                      key={suggestion}
                       onClick={() => handleSuggestionClick(suggestion)}
                       $isSelected={index === selectedIndex}
                     >
@@ -709,7 +802,7 @@ function App() {
 
             <GameControls>
               <Button
-                onClick={checkAnswer}
+                onClick={handleSubmit}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -717,7 +810,7 @@ function App() {
               </Button>
               
               <RevealButton
-                onClick={handleReveal}
+                onClick={handleRevealAnswer}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -737,16 +830,31 @@ function App() {
             )}
 
             <ScoreContainer>
-              <ScoreLabel>Score:</ScoreLabel>
-              <ScoreValue
-                key={score}
-                initial={{ scale: 1.2 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                {score}
-              </ScoreValue>
+              <ScoreItem>
+                <ScoreLabel>Progress:</ScoreLabel>
+                <ScoreValue key={totalFlags}>{totalFlags}/{totalPossibleFlags}</ScoreValue>
+              </ScoreItem>
+              <ScoreItem $isCorrect={true}>
+                <ScoreLabel>Correct:</ScoreLabel>
+                <ScoreValue key={correctGuesses}>{correctGuesses}</ScoreValue>
+              </ScoreItem>
+              <ScoreItem $isCorrect={false}>
+                <ScoreLabel>Wrong:</ScoreLabel>
+                <ScoreValue key={wrongGuesses}>{wrongGuesses}</ScoreValue>
+              </ScoreItem>
+              <ScoreItem>
+                <ScoreLabel>Score:</ScoreLabel>
+                <ScoreValue key={score}>{score}</ScoreValue>
+              </ScoreItem>
             </ScoreContainer>
+
+            <AttemptsIndicator>
+              {Array.from({ length: attemptsLeft }, (_, i) => (
+                <HeartIcon key={i} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                </HeartIcon>
+              ))}
+            </AttemptsIndicator>
           </QuizContent>
         </MainContent>
       </Container>
