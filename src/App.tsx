@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled, { createGlobalStyle } from 'styled-components';
 import { motion } from 'framer-motion';
 
@@ -610,12 +610,27 @@ function App() {
   const [wrongGuesses, setWrongGuesses] = useState(0);
   const [attemptsLeft, setAttemptsLeft] = useState(3);
   const [totalPossibleFlags] = useState(Object.keys(countryData).length);
+  const [usedFlags, setUsedFlags] = useState<Set<string>>(new Set());
 
   const getAllCountryCodes = (): string[] => Object.keys(countryData);
 
   const getRandomFlag = (): string => {
-    const flags = getAllCountryCodes();
-    const newFlag = flags[Math.floor(Math.random() * flags.length)];
+    const availableFlags = getAllCountryCodes().filter(code => !usedFlags.has(code));
+    
+    if (availableFlags.length === 0) {
+      // All flags have been used, reset the game
+      setUsedFlags(new Set());
+      setTotalFlags(0);
+      setCorrectGuesses(0);
+      setWrongGuesses(0);
+      setScore(0);
+      setMessage("You've seen all flags! Starting over...");
+      return getAllCountryCodes()[Math.floor(Math.random() * getAllCountryCodes().length)];
+    }
+    
+    const randomIndex = Math.floor(Math.random() * availableFlags.length);
+    const newFlag = availableFlags[randomIndex];
+    setUsedFlags(prev => new Set([...prev, newFlag]));
     return newFlag;
   };
 
@@ -752,6 +767,11 @@ function App() {
     setSelectedIndex(-1);
     setSuggestions(getSuggestions(value));
   };
+
+  useEffect(() => {
+    const initialFlag = getRandomFlag();
+    setCurrentFlag(initialFlag);
+  }, []);
 
   return (
     <>
