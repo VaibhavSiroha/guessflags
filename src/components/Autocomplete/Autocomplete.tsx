@@ -13,6 +13,8 @@ interface AutocompleteProps {
     isShaking?: boolean;
     disabled?: boolean;
     placeholder?: string;
+    autoFocus?: boolean;
+    flagKey?: string; // Used to refocus when flag changes
 }
 
 const Container = styled.div`
@@ -30,14 +32,16 @@ const Input = styled.input`
   font-size: 1.1rem;
   background: ${theme.colors.glass};
   backdrop-filter: blur(${theme.blur});
-  border: 2px solid ${theme.colors.glassBorder};
+  border: 1px solid ${theme.colors.glassBorder};
   border-radius: ${theme.radius.md};
   color: ${theme.colors.text};
-  transition: all ${theme.transitions.fast};
+  transition: all ${theme.transitions.spring};
+  box-shadow: ${theme.shadows.glass};
 
   &:focus {
     border-color: ${theme.colors.primary};
-    box-shadow: 0 0 0 3px ${theme.colors.primaryGlow};
+    box-shadow: ${theme.shadows.glassHover}, ${theme.shadows.glow};
+    transform: translateY(-1px);
   }
 
   &::placeholder {
@@ -66,7 +70,7 @@ const SuggestionsList = styled(motion.ul)`
   backdrop-filter: blur(${theme.blur});
   border: 1px solid ${theme.colors.glassBorder};
   border-radius: ${theme.radius.md};
-  box-shadow: ${theme.shadows.glass};
+  box-shadow: ${theme.shadows.glass3d};
   list-style: none;
   z-index: 50;
   max-height: 200px;
@@ -77,8 +81,12 @@ const SuggestionsList = styled(motion.ul)`
   }
 
   &::-webkit-scrollbar-thumb {
-    background: ${theme.colors.glassBorder};
+    background: ${theme.colors.primary};
     border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: ${theme.colors.glass};
   }
 `;
 
@@ -87,10 +95,13 @@ const SuggestionItem = styled.li<{ $isSelected?: boolean }>`
   cursor: pointer;
   transition: all ${theme.transitions.fast};
   background: ${props => props.$isSelected ? theme.colors.glassHover : 'transparent'};
-  color: ${theme.colors.text};
+  color: ${props => props.$isSelected ? theme.colors.primary : theme.colors.text};
+  border-left: 3px solid ${props => props.$isSelected ? theme.colors.primary : 'transparent'};
 
   &:hover {
     background: ${theme.colors.glassHover};
+    color: ${theme.colors.primary};
+    border-left-color: ${theme.colors.primary};
   }
 `;
 
@@ -108,10 +119,23 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
     isShaking,
     disabled,
     placeholder = 'Enter country name...',
+    autoFocus = true,
+    flagKey,
 }) => {
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Auto-focus the input when component mounts, disabled changes to false, or flag changes
+    useEffect(() => {
+        if (autoFocus && !disabled && inputRef.current) {
+            // Small delay to ensure the DOM is ready
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [disabled, autoFocus, flagKey]);
 
     useEffect(() => {
         setSelectedIndex(-1);

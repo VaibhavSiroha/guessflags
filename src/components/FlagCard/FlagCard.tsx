@@ -30,11 +30,36 @@ const FlagWrapper = styled(motion.div) <{ $isCorrect?: boolean; $isWrong?: boole
   box-shadow: ${props =>
         props.$isCorrect ? theme.shadows.successGlow :
             props.$isWrong ? theme.shadows.errorGlow :
-                theme.shadows.glass};
-  transition: all ${theme.transitions.normal};
+                theme.shadows.glass3d};
+  transition: all ${theme.transitions.spring};
+  transform-style: preserve-3d;
+  perspective: 1000px;
+
+  /* Glass reflection effect */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.02) 50%,
+      transparent 100%
+    );
+    border-radius: ${theme.radius.lg} ${theme.radius.lg} 0 0;
+    pointer-events: none;
+  }
 
   &:hover {
-    box-shadow: ${theme.shadows.glassHover};
+    box-shadow: ${theme.shadows.glassHover}, ${theme.shadows.glow};
+    transform: translateY(-4px) perspective(1000px) rotateX(2deg);
+    border-color: ${props =>
+        props.$isCorrect ? theme.colors.success :
+            props.$isWrong ? theme.colors.error :
+                theme.colors.primary};
   }
 
   @media (max-width: 768px) {

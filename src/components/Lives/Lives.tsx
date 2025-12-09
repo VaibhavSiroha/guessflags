@@ -26,8 +26,8 @@ const Heart = styled.svg<{ $active: boolean }>`
   width: 1.75rem;
   height: 1.75rem;
   color: ${props => props.$active ? theme.colors.error : theme.colors.textDim};
-  filter: ${props => props.$active ? 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.5))' : 'none'};
-  transition: all ${theme.transitions.normal};
+  filter: ${props => props.$active ? `drop-shadow(0 0 8px ${theme.colors.errorGlow})` : 'none'};
+  transition: all ${theme.transitions.spring};
 `;
 
 const Lives: React.FC<LivesProps> = ({ lives, maxLives }) => {

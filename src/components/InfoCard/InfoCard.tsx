@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { theme } from '../../styles/theme';
@@ -31,7 +31,26 @@ const Card = styled(motion.div)`
   padding: 2rem;
   max-width: 400px;
   width: 100%;
-  box-shadow: ${theme.shadows.glass};
+  box-shadow: ${theme.shadows.glass3d}, ${theme.shadows.glow};
+  position: relative;
+  overflow: hidden;
+
+  /* Glass reflection */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 35%;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.02) 50%,
+      transparent 100%
+    );
+    pointer-events: none;
+  }
 `;
 
 const Header = styled.div`
@@ -83,9 +102,11 @@ const InfoValue = styled.span`
 const FunFact = styled.div`
   margin-top: 1rem;
   padding: 1rem;
-  background: rgba(99, 102, 241, 0.1);
+  background: ${theme.colors.primaryGlow};
   border-radius: ${theme.radius.md};
   border-left: 3px solid ${theme.colors.primary};
+  position: relative;
+  z-index: 1;
 `;
 
 const FunFactLabel = styled.span`
@@ -108,20 +129,53 @@ const CloseButton = styled(motion.button)`
   margin-top: 1.5rem;
   padding: 0.875rem;
   font-size: 1rem;
-  font-weight: 600;
-  background: ${theme.colors.primary};
-  color: white;
+  font-weight: 700;
+  background: linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.primaryDark} 100%);
+  color: #0a0f16;
   border: none;
   border-radius: ${theme.radius.md};
   cursor: pointer;
-  transition: background ${theme.transitions.fast};
+  transition: all ${theme.transitions.spring};
+  box-shadow: ${theme.shadows.button3d}, ${theme.shadows.glow};
+  position: relative;
+  z-index: 1;
 
   &:hover {
-    background: ${theme.colors.primaryHover};
+    background: linear-gradient(135deg, ${theme.colors.primaryHover} 0%, ${theme.colors.primary} 100%);
+    transform: translateY(-2px);
+    box-shadow: ${theme.shadows.glassHover}, ${theme.shadows.glowStrong};
+  }
+
+  &:active {
+    transform: translateY(2px);
+    box-shadow: ${theme.shadows.button3dPressed};
   }
 `;
 
 const InfoCard: React.FC<InfoCardProps> = ({ country, isVisible, onClose }) => {
+  // Handle keyboard events to close the card
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onClose();
+    }
+  }, [onClose]);
+
+  useEffect(() => {
+    if (isVisible) {
+      // Add a small delay before listening for keyboard events
+      // This prevents the Enter key that opened the card from also closing it
+      const timer = setTimeout(() => {
+        window.addEventListener('keydown', handleKeyDown);
+      }, 200);
+
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [isVisible, handleKeyDown]);
+
   return (
     <AnimatePresence>
       {isVisible && (
@@ -168,7 +222,7 @@ const InfoCard: React.FC<InfoCardProps> = ({ country, isVisible, onClose }) => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              Continue Playing
+              Continue Playing (Press Enter)
             </CloseButton>
           </Card>
         </Overlay>
